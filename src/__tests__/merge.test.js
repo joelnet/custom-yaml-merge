@@ -1,47 +1,111 @@
 const { merge } = require("../merge");
-const fs = require("fs");
 
 describe("merge.js", () => {
-  let rawYaml;
-  let overrideYaml;
-
-  beforeAll(() => {
-    rawYaml = fs.readFileSync(process.cwd() + "/src/main.yaml", "utf8");
-    overrideYaml = fs.readFileSync(
-      process.cwd() + "/src/overrides.yaml",
-      "utf8"
-    );
+  test("changes the anchor also set the alias", () => {
+    const main = `
+colors:
+  primary: &primary-color "#444"
+body:
+  color: *primary-color`;
+    const overrides = `
+colors:
+  primary: "orange"`;
+    const expected = `colors:
+  primary: orange
+body:
+  color: orange
+`;
+    const actual = merge(main, overrides);
+    expect(actual).toBe(expected);
   });
 
-  test("modifies color.primary", () => {
-    const expected = "orange";
-    const actual = merge(rawYaml, overrideYaml).colors.primary;
-    expect(actual).toStrictEqual(expected);
+  test("appends pair color.custom", () => {
+    const main = `
+colors:
+  primary: &primary-color "#444"
+body:
+  color: *primary-color`;
+    const overrides = `
+colors:
+  custom: pink`;
+    const expected = `colors:
+  primary: "#444"
+  custom: pink
+body:
+  color: "#444"
+`;
+    const actual = merge(main, overrides);
+    expect(actual).toBe(expected);
   });
 
-  test("inserts color.custom", () => {
-    const expected = "pink";
-    const actual = merge(rawYaml, overrideYaml).colors.custom;
-    expect(actual).toStrictEqual(expected);
+  test("replaces array", () => {
+    const main = `array: [1, 2, 3]`;
+    const overrides = `array: [4, 5, 6]`;
+    const expected = `array:
+  - 4
+  - 5
+  - 6
+`;
+    const actual = merge(main, overrides);
+    expect(actual).toBe(expected);
   });
 
-  test("modifies body.color", () => {
-    const expected = "orange";
-    const actual = merge(rawYaml, overrideYaml).body.color;
-    expect(actual).toStrictEqual(expected);
+  test("override changes alias", () => {
+    const main = `
+colors:
+  primary: &primary-color "red"
+  secondary: &secondary-color "orange"
+box:
+  color: *primary-color`;
+
+    const overrides = `
+box:
+  color: *secondary-color`;
+
+    const expected = `colors:
+  primary: red
+  secondary: orange
+box:
+  color: orange
+`;
+
+    const merged = merge(main, overrides);
+    expect(merged).toBe(expected);
   });
 
-  test("modifies deep.merge.test.background-color", () => {
-    const expected = "red";
-    const actual = merge(rawYaml, overrideYaml).deep.merge.test[
-      "background-color"
-    ];
-    expect(actual).toStrictEqual(expected);
+  test("override changes scalar to alias", () => {
+    const main = `
+colors:
+  primary: &primary-color "red"
+box:
+  color: pink`;
+    const overrides = `
+box:
+  color: *primary-color`;
+    const expected = `colors:
+  primary: red
+box:
+  color: red
+`;
+    const merged = merge(main, overrides);
+    expect(merged).toBe(expected);
   });
 
-  test("does not modify error.color", () => {
-    const expected = "red";
-    const actual = merge(rawYaml, overrideYaml).error.color;
-    expect(actual).toStrictEqual(expected);
+  test("override changes ALIAS to SCALAR", () => {
+    const main = `
+colors:
+  primary: &primary-color "red"
+box:
+  color: *primary-color`;
+    const overrides = `
+box:
+  color: pink`;
+    const expected = `colors:
+  primary: red
+box:
+  color: pink
+`;
+    const merged = merge(main, overrides);
+    expect(merged).toBe(expected);
   });
 });
